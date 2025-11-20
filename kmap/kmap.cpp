@@ -78,7 +78,7 @@ void printSolution(vector<Term>& t) {
 }
 void printkmap(vector<Term>& t) {
     string grayLabels[] = { "00", "01", "11", "10" };
-    cout << " K-Map:" << endl;
+    cout << "K-Map:" << endl;
     cout << "AB\\CD\t";
     for (int j = 0; j < 4; ++j) {
         cout << grayLabels[j] << "\t";
@@ -95,9 +95,9 @@ void printkmap(vector<Term>& t) {
             else if (i == 1)
                 pos[i][j] = i + j + 3;
             else if (i == 2)
-                pos[i][j] = i + j + 9;
+                pos[i][j] = i + j + 10;
             else if (i == 3)
-                pos[i][j] = i + j + 6;
+                pos[i][j] = i + j + 5;
         }
     }
     for (int i = 0; i < 4; ++i) {
@@ -253,7 +253,6 @@ int main()
                 isCovered[i] = true;
             }
         }
-
         printSolution(solution);
         printkmap(minterms);
     }
