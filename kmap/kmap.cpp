@@ -76,20 +76,86 @@ void printSolution(vector<Term>& t) {
     }
     cout << out << endl;
 }
+void printkmap(vector<Term>& t) {
+    string grayLabels[] = { "00", "01", "11", "10" };
+    cout << " K-Map:" << endl;
+    cout << "AB\\CD\t";
+    for (int j = 0; j < 4; ++j) {
+        cout << grayLabels[j] << "\t";
+    }
+    cout << endl;
+    cout << "---------------------------------" << endl;
+
+    vector<vector<int>> vec(4, vector<int>(4, 0));
+    vector<vector<int>> pos(4, vector<int>(4));
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            if (i == 0)
+                pos[i][j] = i + j;
+            else if (i == 1)
+                pos[i][j] = i + j + 3;
+            else if (i == 2)
+                pos[i][j] = i + j + 9;
+            else if (i == 3)
+                pos[i][j] = i + j + 6;
+        }
+    }
+    for (int i = 0; i < 4; ++i) {
+        swap(pos[i][2], pos[i][3]);
+    }
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            for (auto k : t) {
+                if (k.nums[0] == pos[i][j]) {
+                    vec[i][j] = 1;
+                }
+            }
+        }
+    }
+    for (int i = 0; i < 4; ++i) {
+        cout << grayLabels[i] << "   |\t";
+        for (int j = 0; j < 4; ++j) {
+            cout << vec[i][j] << "\t";
+        }
+        cout << endl;
+    }
+    cout << endl;
+}
+// 0 1 3 2
+// 4 5 7 6
+// 12 13 15 14
+// 8 9 11 10.
+bool alldigit(string& s) {
+    for (char c : s) {
+        if (!isdigit(c))
+            return false;
+    }
+    return true;
+}
 int main()
 {
     string input;
-    while (getline(cin, input)) {
+    int cnt = 1;
+    while (true) {
+        cout << "Test Case: " << cnt++ << endl;
+        cout << "Enter minterms (space-separated):" << endl;
+        if (!getline(cin, input))break;
+        if (input.empty())continue;
         stringstream ss(input);
         string word;
         vector<Term> minterms;
+        bool Digit = true;
         while (ss >> word) {
+            if (!alldigit(word)) {
+                Digit = false;
+                break;
+            }
             Term t;
             t.bits = ToBinary(word);
             t.nums.push_back(stoi(word));
             minterms.push_back(t);
         }
-
+        if (!Digit)continue;
         vector<vector<Term>> groups(5);
         for (auto &m : minterms) {
             Term t;
@@ -189,6 +255,7 @@ int main()
         }
 
         printSolution(solution);
+        printkmap(minterms);
     }
 }
 
