@@ -46,8 +46,7 @@ Term termMerge(Term& t1, Term& t2) {
     return t;
 }
 void printSolution(vector<Term>& t) {
-    cout << "Simplified SOP Expression:" << endl;
-
+    cout << "Output (SOP) ";
     if (t.empty()) {
         cout << "0" << endl;
         return;
@@ -76,7 +75,7 @@ void printSolution(vector<Term>& t) {
     }
     cout << out << endl;
 }
-void printkmap(vector<Term>& t) {
+void printkmap(vector<Term>& t, vector<bool>& isRequired) {
     string grayLabels[] = { "00", "01", "11", "10" };
     cout << "K-Map:" << endl;
     cout << "AB\\CD\t";
@@ -86,7 +85,7 @@ void printkmap(vector<Term>& t) {
     cout << endl;
     cout << "---------------------------------" << endl;
 
-    vector<vector<int>> vec(4, vector<int>(4, 0));
+    vector<vector<char>> vec(4, vector<char>(4, '0'));
     vector<vector<int>> pos(4, vector<int>(4));
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -105,9 +104,13 @@ void printkmap(vector<Term>& t) {
     }
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            for (auto k : t) {
-                if (k.nums[0] == pos[i][j]) {
-                    vec[i][j] = 1;
+            for (auto& k : t) {
+                int nums = k.nums[0];
+                if (nums == pos[i][j] && isRequired[nums]) {
+                    vec[i][j] = '1';
+                }
+                else if (nums == pos[i][j] && !isRequired[nums]) {
+                    vec[i][j] = 'd';
                 }
             }
         }
@@ -144,15 +147,26 @@ int main()
         stringstream ss(input);
         string word;
         vector<Term> minterms;
+        vector<bool> isRequired(16, false);
         bool Digit = true;
         while (ss >> word) {
-            if (!alldigit(word)) {
+            Term t;
+            int num;
+            if (word[0] == 'd' || word[0] == 'D') {
+                string sub = word.substr(1);
+                t.bits = ToBinary(sub);
+                num = stoi(sub);
+            }
+            else if(alldigit(word)){
+                t.bits = ToBinary(word);
+                num = stoi(word);
+                isRequired[num] = true;
+            }
+            else {
                 Digit = false;
                 break;
             }
-            Term t;
-            t.bits = ToBinary(word);
-            t.nums.push_back(stoi(word));
+            t.nums.push_back(num);
             minterms.push_back(t);
         }
         if (!Digit)continue;
@@ -203,7 +217,8 @@ int main()
 
         for (auto& pi : primeImplicants) {
             for (auto i : pi.nums) {
-                counts[i]++;
+                if(isRequired[i])
+                    counts[i]++;
             }
         }
         vector<Term> solution;
@@ -211,7 +226,7 @@ int main()
         for (auto& pi : primeImplicants) {
             bool isEPI = false;
             for (auto i : pi.nums) {
-                if (counts[i] == 1) {
+                if (isRequired[i] && counts[i] == 1) {
                     isEPI = true;
                     break;
                 }
@@ -227,7 +242,7 @@ int main()
             vector<int> unCovered;
             for (auto& i : minterms) {
                 int num = i.nums[0];
-                if (isCovered[num] == false) {
+                if (isCovered[num] == false && isRequired[num]) {
                     unCovered.push_back(num);
                 }  
             }
@@ -254,7 +269,7 @@ int main()
             }
         }
         printSolution(solution);
-        printkmap(minterms);
+        printkmap(minterms,isRequired);
     }
 }
 
