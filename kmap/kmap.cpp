@@ -9,9 +9,8 @@ struct Term {
     vector<int> nums;
     bool used = false;
 };
-vector<int> ToBinary(string& s) {
+vector<int> ToBinary(int num) {
     vector<int> mask(4);
-    int num = stoi(s);
     mask[0] = (num >> 3) & 1;
     mask[1] = (num >> 2) & 1;
     mask[2] = (num >> 1) & 1;
@@ -45,11 +44,9 @@ Term termMerge(Term& t1, Term& t2) {
     sort(t.nums.begin(), t.nums.end());
     return t;
 }
-void printSolution(vector<Term>& t) {
-    cout << "Output (SOP) ";
+string generatSoPStr(vector<Term>& t) {
     if (t.empty()) {
-        cout << "0" << endl;
-        return;
+        return "0";
     }
     char vars[] = { 'A','B','C','D' };
     string out;
@@ -65,17 +62,59 @@ void printSolution(vector<Term>& t) {
             }
         }
         if (s.empty()) {
-            cout << "1\n";
-            return;
+            return "1";
         }
         out += s;
         if (k < t.size() - 1) {
             out += " + ";
         }
     }
-    cout << out << endl;
+    return out;
 }
-void printkmap(vector<Term>& t, vector<bool>& isRequired) {
+void toPos(string F) {
+    if (F == "0") {
+        cout << "0\n";
+        return;
+    }
+    else if (F == "1") {
+        cout << "1\n";
+        return;
+    }
+    stringstream ss(F);
+    string w;
+    vector<string> word;
+    vector<string> trans;
+    while (ss >> w) {
+        if (w != "+")
+            word.push_back(w);
+    }
+    for (auto& w : word) {
+        string POS;
+        for (int i = 0; i < w.size(); ++i) {
+            if (isalpha(w[i])) {
+                if (i + 1 < w.size() && w[i + 1] == '\'') {
+                    POS += w[i];
+                    i++;
+                }
+                else {
+                    POS += w[i];
+                    POS += "'";
+                }
+                if (i < w.size() - 1)
+                    POS += " + ";
+            }
+        }
+        if (!POS.empty())
+            trans.push_back(POS);
+    }
+    cout << "Output(POS) ";
+
+    for (auto& w : trans) {
+        cout << "(" << w << ")";
+    }
+    cout << endl;
+}
+void printkmap(vector<bool>& isMinterm, vector<bool>& isDontCare) {
     string grayLabels[] = { "00", "01", "11", "10" };
     cout << "K-Map:" << endl;
     cout << "AB\\CD\t";
@@ -104,15 +143,10 @@ void printkmap(vector<Term>& t, vector<bool>& isRequired) {
     }
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            for (auto& k : t) {
-                int nums = k.nums[0];
-                if (nums == pos[i][j] && isRequired[nums]) {
-                    vec[i][j] = '1';
-                }
-                else if (nums == pos[i][j] && !isRequired[nums]) {
-                    vec[i][j] = 'd';
-                }
-            }
+            int num = pos[i][j];
+            if (isMinterm[num]) vec[i][j] = '1';
+            else if (isDontCare[num]) vec[i][j] = 'd';
+            else vec[i][j] = '0';
         }
     }
     for (int i = 0; i < 4; ++i) {
@@ -135,6 +169,107 @@ bool alldigit(string& s) {
     }
     return true;
 }
+string fun(vector<Term>& minterms,vector<bool> isRequired) {
+    vector<vector<Term>> groups(5);
+    for (auto& m : minterms) {
+        Term t;
+        int ones = count(m.bits.begin(), m.bits.end(), 1);
+        t.bits = m.bits;
+        t.nums = m.nums;
+        groups[ones].push_back(t);
+    }
+    vector<Term> primeImplicants;
+    while (true) {
+        vector<vector<Term>> nextgroups(5);
+        bool merge = false;
+        for (int i = 0; i < 4; ++i) {
+            for (auto& term1 : groups[i]) {
+                for (auto& term2 : groups[i + 1]) {
+                    if (canMerge(term1.bits, term2.bits)) {
+                        merge = true;
+                        Term t = termMerge(term1, term2);
+                        int ones = count(t.bits.begin(), t.bits.end(), 1);
+                        bool exist = false;
+                        for (auto& c : nextgroups[ones]) {
+                            if (t.bits == c.bits)
+                                exist = true;
+                        }
+                        if (!exist)
+                            nextgroups[ones].push_back(t);
+                    }
+                }
+            }
+        }
+
+        for (auto& i : groups) {
+            for (auto& t : i) {
+                if (!t.used) {
+                    primeImplicants.push_back(t);
+                }
+            }
+        }
+        if (!merge)break;
+        for (int i = 0; i < 5; ++i) {
+            groups[i] = nextgroups[i];
+        }
+    }
+    vector<int> counts(16, 0);
+
+    for (auto& pi : primeImplicants) {
+        for (auto i : pi.nums) {
+            if (isRequired[i])
+                counts[i]++;
+        }
+    }
+    vector<Term> solution;
+    vector<bool> isCovered(16, false);
+    for (auto& pi : primeImplicants) {
+        bool isEPI = false;
+        for (auto i : pi.nums) {
+            if (isRequired[i] && counts[i] == 1) {
+                isEPI = true;
+                break;
+            }
+        }
+        if (isEPI) {
+            solution.push_back(pi);
+            for (auto i : pi.nums) {
+                isCovered[i] = true;
+            }
+        }
+    }
+    while (true) {
+        vector<int> unCovered;
+        for (auto& i : minterms) {
+            int num = i.nums[0];
+            if (isCovered[num] == false && isRequired[num]) {
+                unCovered.push_back(num);
+            }
+        }
+        if (unCovered.empty())break;
+        Term BestPI;
+        int MaxCoveredCount = -1;
+        for (auto& pi : primeImplicants) {
+            int currentCoveredCount = 0;
+            for (auto i : pi.nums) {
+                for (auto t : unCovered) {
+                    if (i == t) {
+                        currentCoveredCount++;
+                    }
+                }
+            }
+            if (currentCoveredCount > MaxCoveredCount) {
+                MaxCoveredCount = currentCoveredCount;
+                BestPI = pi;
+            }
+        }
+        solution.push_back(BestPI);
+        for (auto i : BestPI.nums) {
+            isCovered[i] = true;
+        }
+    }
+    return generatSoPStr(solution);
+}
 int main()
 {
     string input;
@@ -146,130 +281,58 @@ int main()
         if (input.empty())continue;
         stringstream ss(input);
         string word;
-        vector<Term> minterms;
-        vector<bool> isRequired(16, false);
+        vector<bool> isMinterm(16,false);
+        vector<bool> isDontCare(16, false);
         bool Digit = true;
         while (ss >> word) {
-            Term t;
             int num;
             if (word[0] == 'd' || word[0] == 'D') {
                 string sub = word.substr(1);
-                t.bits = ToBinary(sub);
                 num = stoi(sub);
+                isDontCare[num] = true;
             }
             else if(alldigit(word)){
-                t.bits = ToBinary(word);
                 num = stoi(word);
-                isRequired[num] = true;
+                isMinterm[num] = true;
             }
             else {
                 Digit = false;
                 break;
             }
-            t.nums.push_back(num);
-            minterms.push_back(t);
         }
         if (!Digit)continue;
-        vector<vector<Term>> groups(5);
-        for (auto &m : minterms) {
-            Term t;
-            int ones = count(m.bits.begin(), m.bits.end(), 1);
-            t.bits = m.bits;
-            t.nums = m.nums;
-            groups[ones].push_back(t);
-        }
-        vector<Term> primeImplicants;
-        while (true) {
-            vector<vector<Term>> nextgroups(5);
-            bool merge = false;
-            for (int i = 0; i < 4; ++i) {
-                for (auto& term1 : groups[i]) {
-                    for (auto& term2 : groups[i + 1]) {
-                        if (canMerge(term1.bits, term2.bits)) {
-                            merge = true;
-                            Term t = termMerge(term1, term2);
-                            int ones = count(t.bits.begin(), t.bits.end(), 1);
-                            bool exist = false;
-                            for (auto& c : nextgroups[ones]) {
-                                if (t.bits == c.bits)
-                                    exist = true;
-                            }
-                            if (!exist)
-                                nextgroups[ones].push_back(t);
-                        }
-                    }
-                }
-            }
+        vector<Term> termsSOP;
+        vector<bool> requiredSOP(16, false);
+        for (int i = 0; i < 16; ++i) {
+            if (isMinterm[i] || isDontCare[i]) {
+                Term t;
+                t.bits = ToBinary(i);
+                t.nums.push_back(i);
+                termsSOP.push_back(t);
 
-            for (auto& i : groups) {
-                for (auto& t : i) {
-                    if (!t.used) {
-                        primeImplicants.push_back(t);
-                    }
-                }
-            }
-            if (!merge)break;
-            for (int i = 0; i < 5; ++i) {
-                groups[i] = nextgroups[i];
+                if (isMinterm[i]) requiredSOP[i] = true; // 只有 1 是必須覆蓋的
             }
         }
-        vector<int> counts(16, 0);
+        vector<Term> termsPOS;
+        vector<bool> requiredPOS(16, false);
+        for (int i = 0; i < 16; ++i) {
+            // 如果不是 Minterm (1)，也不是 DontCare (d)，那就是 Maxterm (0)
+            bool isMaxterm = !isMinterm[i] && !isDontCare[i];
 
-        for (auto& pi : primeImplicants) {
-            for (auto i : pi.nums) {
-                if(isRequired[i])
-                    counts[i]++;
+            if (isMaxterm || isDontCare[i]) {
+                Term t;
+                t.bits = ToBinary(i);
+                t.nums.push_back(i);
+                termsPOS.push_back(t);
+
+                if (isMaxterm) requiredPOS[i] = true; // 在反向邏輯中，0 是必須覆蓋的
             }
         }
-        vector<Term> solution;
-        vector<bool> isCovered(16, false);
-        for (auto& pi : primeImplicants) {
-            bool isEPI = false;
-            for (auto i : pi.nums) {
-                if (isRequired[i] && counts[i] == 1) {
-                    isEPI = true;
-                    break;
-                }
-            }
-            if (isEPI) {
-                solution.push_back(pi);
-                for (auto i : pi.nums) {
-                    isCovered[i] = true;
-                }
-            }
-        }
-        while (true) {
-            vector<int> unCovered;
-            for (auto& i : minterms) {
-                int num = i.nums[0];
-                if (isCovered[num] == false && isRequired[num]) {
-                    unCovered.push_back(num);
-                }  
-            }
-            if (unCovered.empty())break;
-            Term BestPI;
-            int MaxCoveredCount = -1;
-            for (auto& pi : primeImplicants) {
-                int currentCoveredCount = 0;
-                for (auto i : pi.nums) {
-                    for (auto t : unCovered) {
-                        if (i == t) {
-                            currentCoveredCount++;
-                        }
-                    }
-                }
-                if (currentCoveredCount > MaxCoveredCount) {
-                    MaxCoveredCount = currentCoveredCount;
-                    BestPI = pi;
-                }
-            }
-            solution.push_back(BestPI);
-            for (auto i : BestPI.nums) {
-                isCovered[i] = true;
-            }
-        }
-        printSolution(solution);
-        printkmap(minterms,isRequired);
+        string sopResult = fun(termsSOP, requiredSOP);
+        cout << "Output (SOP): " << sopResult << endl;
+        string inverseSOP = fun(termsPOS, requiredPOS);
+        toPos(inverseSOP);
+        printkmap(isMinterm,isDontCare);
     }
 }
 
