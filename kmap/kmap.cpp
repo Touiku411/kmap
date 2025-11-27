@@ -73,11 +73,11 @@ string generatSoPStr(vector<Term>& t) {
 }
 void toPos(string F) {
     if (F == "0") {
-        cout << "0\n";
+        cout << "Output (POS): 0\n";
         return;
     }
     else if (F == "1") {
-        cout << "1\n";
+        cout << "Output (POS): 1\n";
         return;
     }
     stringstream ss(F);
@@ -278,7 +278,7 @@ int main()
         cout << "Test Case: " << cnt++ << endl;
         cout << "Enter minterms (space-separated):" << endl;
         if (!getline(cin, input))break;
-        if (input.empty())continue;
+     /*   if (input.empty())continue;*/
         stringstream ss(input);
         string word;
         vector<bool> isMinterm(16,false);
